@@ -1,0 +1,32 @@
+TCF7	Na夫e markers
+SELL	Na夫e markers
+LEF1	Na夫e markers
+CCR7	Na夫e markers
+LAG3	Inhibitory receptors
+TIGIT	Inhibitory receptors
+PDCD1	Inhibitory receptors
+HAVCR2	Inhibitory receptors
+CTLA4	Inhibitory receptors
+IL2	Cytokines and effectors
+GZMA	Cytokines and effectors
+GNLY	Cytokines and effectors
+PRF1	Cytokines and effectors
+GZMB	Cytokines and effectors
+GZMK	Cytokines and effectors
+IFNG	Cytokines and effectors
+NKG7	Cytokines and effectors
+CD28	Co-stimulatory molecules
+TNFRSF14	Co-stimulatory molecules
+ICOS	Co-stimulatory molecules
+TNFRSF9	Co-stimulatory molecules
+EOMES	Transcription factors
+HOPX	Transcription factors
+TBX21	Transcription factors
+ZEB2	Transcription factors
+ZNF683	Transcription factors
+HIF1A	Transcription factors
+ID2	Transcription factors
+TOX	Transcription factors
+IL2RA	Treg markers
+FOXP3	Treg markers
+IKZF2	Treg markers

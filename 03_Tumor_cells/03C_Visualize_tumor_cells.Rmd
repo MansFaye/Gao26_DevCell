@@ -1,0 +1,182 @@
+---
+title: "p682 cluster T cells"
+author: "Geert van Geest"
+date: "1/12/2022"
+output: html_document
+---
+
+
+## Read in data
+
+```{r}
+library(Seurat)
+library(dittoSeq)
+library(readxl)
+```
+
+```{r}
+sc <- readRDS("../analysis/sc_integrated_annotated.rds")
+DefaultAssay(sc) <- "RNA"
+
+sample_order <- read_excel("../metadata/sample_order.xlsx")
+sample_order$sample <- sapply(sample_order$`Sample ID`, function(x) {
+  strsplit(x, " ")[[1]][1]
+})
+```
+
+```{r, cache=TRUE, cache.lazy=FALSE}
+mes <- subset(sc, subset = celltype_main %in% c(
+  "Mesothelial cells",
+  "Cycling mesothelial cells"
+))
+mes <- Seurat::NormalizeData(mes)
+mes <- Seurat::FindVariableFeatures(mes)
+mes <- Seurat::ScaleData(mes)
+mes <- Seurat::RunPCA(mes, npcs = 50)
+mes <- Seurat::RunUMAP(mes, dims = 1:50)
+```
+
+
+```{r}
+dittoDimPlot(mes, var = "orig.ident", size = 0.25)
+dittoDimPlot(mes,
+  var = "orig.ident", size = 0.25, labels.size = 2,
+  do.label = TRUE
+)
+dittoDimPlot(mes, var = "celltype_main", size = 0.25)
+```
+
+## Annotate tumor cells
+
+Tumor cells were identified with `infercnv`.
+
+- **normal:** mesothelial cells from SC18
+- **tumor:** mesothelial cells with CNV
+- **non-tumor:** mesothelial cells without cnv (clustering together with endothelial cells and fibroblasts)
+
+```{r}
+non_tumor <- readLines("../analysis/non-tumor_cells.txt")
+mes$tumor <- "tumor"
+mes$tumor[Cells(mes) %in% non_tumor] <- "non-tumor"
+mes$tumor[mes$orig.ident %in% c("SC18", "SC20", "SC21", "SC22")] <- "normal"
+```
+
+```{r}
+dittoDimPlot(mes, var = "tumor", size = 0.25)
+```
+
+```{r}
+t <- table(mes$celltype_main, mes$tumor)
+knitr::kable(t)
+```
+
+### Number of annotated tumor cells per sample
+
+```{r}
+t <- table(mes$orig.ident, mes$tumor)
+mes$tumor_fine <- mes$tumor
+mes$tumor_fine[mes$tumor == "tumor" &
+  mes$celltype_main == "Cycling mesothelial cells"] <- "tumor cycling"
+mes$tumor_fine[mes$tumor %in% c("non-tumor", "normal") &
+  mes$celltype_main == "Cycling mesothelial cells"] <- "non-tumor cyling"
+```
+
+
+```{r}
+p <- dittoBarPlot(
+  object = mes,
+  var = "tumor",
+  group.by = "orig.ident",
+  x.reorder = match(
+    sample_order$sample,
+    unique(mes$orig.ident)
+  )
+)
+
+print(p)
+
+pdf("../plots/barplot_mesothelial_annotation_main.pdf")
+print(p)
+dev.off()
+
+
+p <- dittoBarPlot(
+  object = mes,
+  var = "tumor_fine",
+  group.by = "orig.ident",
+  x.reorder = match(
+    sample_order$sample,
+    unique(mes$orig.ident)
+  )
+)
+
+print(p)
+
+pdf("../plots/barplot_mesothelial_annotation_fine.pdf")
+print(p)
+dev.off()
+```
+
+### Write output as table
+
+```{r}
+t <- table(mes$tumor, mes$orig.ident)
+xlsx::write.xlsx(
+  unclass(t),
+  "../analysis/absolute_counts_broad_tumor_annotation.xlsx"
+)
+
+t <- table(mes$tumor_fine, mes$orig.ident)
+xlsx::write.xlsx(
+  unclass(t),
+  "../analysis/absolute_counts_fine_tumor_annotation.xlsx"
+)
+```
+
+## Tumor only
+
+```{r}
+dittoDimPlot(mes, var = "tumor_fine", size = 0.25)
+tum <- subset(mes, tumor_fine == "tumor")
+# removing sample 10 as it has only 9 cells
+tum <- subset(tum, orig.ident != "SC10")
+```
+
+```{r}
+DefaultAssay(mes) <- "RNA"
+tum <- Seurat::NormalizeData(tum)
+tum <- Seurat::FindVariableFeatures(tum)
+tum <- Seurat::ScaleData(tum)
+tum <- Seurat::RunPCA(tum, npcs = 50)
+tum <- Seurat::RunUMAP(tum, dims = 1:50)
+```
+
+```{r}
+p <- dittoDimPlot(tum, var = "orig.ident", size = 0.25)
+print(p)
+
+pdf("../plots/umap_sample_tumor.pdf")
+print(p)
+dev.off()
+```
+
+```{r}
+tum <- Seurat::FindNeighbors(tum, dims = 1:50)
+tum <- Seurat::FindClusters(tum, resolution = 0.1)
+```
+
+
+
+```{r}
+p <- dittoDimPlot(tum, var = "RNA_snn_res.0.1", size = .2)
+print(p)
+
+pdf("../plots/umap_clustered_tumor.pdf")
+print(p)
+dev.off()
+```
+
+```{r}
+saveRDS(mes, "../analysis/mesothelial_cells.rds")
+```
+

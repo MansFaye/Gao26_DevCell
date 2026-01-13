@@ -1,0 +1,140 @@
+---
+title: "DGE pseudobulk"
+author: "Geert van Geest"
+date: "1/12/2022"
+output: html_document
+---
+
+## Load required packages and functions
+
+```{r}
+library(msigdbr)
+library(readxl)
+library(Seurat)
+source("../functions_dge.R") |> suppressPackageStartupMessages()
+```
+
+## Read in data
+
+```{r}
+tc <- readRDS("../analysis/tcells_annotated.rds")
+DefaultAssay(tc) <- "RNA"
+```
+
+```{r}
+t <- table(tc$tcell_annotation, tc$orig.ident)
+knitr::kable(t)
+```
+
+Removing SC10, because it's pleural effusion
+
+```{r}
+tc <- subset(tc, subset = orig.ident != "SC10")
+```
+
+### Retrieve database information
+
+```{r}
+h_gene_sets <- msigdbr(species = "Homo sapiens", category = "H")
+
+library(org.Hs.eg.db)
+hs <- org.Hs.eg.db
+```
+
+## Perform DGE 
+
+### treatment2 - tcell_annotation
+
+```{r, cache=TRUE, message=FALSE, fig.show='hide', warning=FALSE}
+cell_types <- unique(tc$tcell_annotation)
+ignore_types <- c("Smooth muscle cells", "other")
+cell_types <- cell_types[! cell_types %in% ignore_types]
+
+for(cell_type in cell_types) {
+  message(paste("Running DGE for", cell_type))
+  ct_short <- gsub(" ", "_", cell_type)
+  outdir <- file.path("../analysis/dge/tcell_annotation/treatment2", ct_short)
+  dir.create(outdir, recursive = TRUE,
+             showWarnings = FALSE)
+  
+  tc_sub <- subset(tc, subset = tcell_annotation == cell_type)
+  
+  perform_dge_pseudodbulk(tc_sub,
+                          ident = "treatment2",
+                          contrast = c("naive", "normal"),
+                          h_gene_sets, outdir = outdir)
+  
+  perform_dge_pseudodbulk(tc_sub,
+                          ident = "treatment2",
+                          contrast = c("chemo", "naive"),
+                          h_gene_sets, outdir = outdir)
+}
+
+
+```
+
+## Perform differential abundance analysis
+
+```{r}
+outdir <- file.path("../analysis/differential_abundance/tcell_annotation/treatment2")
+dir.create(file.path(outdir, "boxplots"), recursive = TRUE,
+           showWarnings = FALSE)
+```
+
+
+```{r}
+ident <- "treatment2"
+annotation <- "tcell_annotation"
+
+cts <- table(tc@meta.data[,annotation], tc$orig.ident) |> unclass()
+coldata <- unique(tc@meta.data[,c("orig.ident", ident)])
+
+cts_norm <- cts |> as.data.frame() |> apply(2, function(x) x/sum(x)*100)
+
+cts_out <- data.frame(cell_type = rownames(cts), cts)
+writexl::write_xlsx(cts_out, file.path(outdir,
+                                       "differential_abundance_tcell_annotation_counts.xlsx"))
+
+treatment <- coldata[,ident] |> factor()
+levels(treatment) <- c("normal", "naive", "chemo")
+
+for(celltype in rownames(cts_norm)) {
+  p <- data.frame(rel_count = cts_norm[celltype,],
+                  treatment = treatment) |>
+    ggplot(aes(x = treatment, y = rel_count)) + 
+    geom_boxplot() + 
+    geom_jitter(shape = 16, position=position_jitter(0.2)) +
+    theme_classic() + labs(title = celltype) + ylab("Percentage of cells")
+  
+  print(p)
+  
+  ct_short <- gsub("[ \\+]", "", celltype)
+  pdf(file.path(outdir, "boxplots", paste0(ct_short, ".pdf")),
+      width = 3, height = 3)
+  print(p)
+  dev.off()
+}
+```
+
+```{r}
+contrasts <- list(
+  c("naive", "normal"),
+  c("chemo", "naive")
+)
+
+for(contrast in contrasts) {
+  
+  dab <- differential_abundance(cts, coldata,
+                                ident = "treatment2",
+                                contrast = contrast)
+  
+  da_out <- data.frame(cell_type = rownames(dab$da_results), dab$da_results)
+  
+  writexl::write_xlsx(da_out, file.path(outdir,
+                                            paste0("differential_abundance_tcell_results_",
+                                                   contrast[1], "_", contrast[2],
+                                                   ".xlsx")))
+}
+
+```
+

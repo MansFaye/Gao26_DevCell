@@ -1,0 +1,74 @@
+---
+title: "p682 DGE analysis tumor cells"
+author: "Geert van Geest"
+date: "1/12/2022"
+output: html_document
+---
+
+```{r}
+library(readxl)
+library(writexl)
+library(Seurat)
+library(msigdbr)
+library(org.Hs.eg.db)
+source("../functions_dge.R") |> suppressPackageStartupMessages()
+```
+
+## Load data
+
+```{r}
+mes <- readRDS("../analysis/mesothelial_cells.rds")
+```
+
+### Retrieve database information
+
+```{r}
+h_gene_sets <- msigdbr(species = "Homo sapiens", category = "H")
+hs <- org.Hs.eg.db
+```
+
+## DGE 
+
+### tumor_fine
+
+```{r, cache=TRUE, message=FALSE, fig.show='hide', warning=FALSE, cache.lazy=FALSE}
+cell_types <- "tumor"
+
+for(cell_type in cell_types) {
+  message(paste("Running DGE for", cell_type))
+  ct_short <- gsub(" ", "_", cell_type)
+  outdir <- file.path("../analysis/dge/tumor_fine/treatment2", ct_short)
+  dir.create(outdir, recursive = TRUE,
+             showWarnings = FALSE)
+  
+  mes_sub <- subset(mes, subset = tumor_fine == cell_type)
+  
+  perform_dge_pseudodbulk(mes_sub,
+                          ident = "treatment2",
+                          contrast = c("chemo", "naive"),
+                          h_gene_sets, outdir = outdir)
+}
+
+
+```
+
+
+### tumor
+
+```{r, cache=TRUE, message=FALSE, fig.show='hide', warning=FALSE, cache.lazy=FALSE}
+
+outdir <- file.path("../analysis/dge/tumor/treatment2")
+dir.create(outdir, recursive = TRUE,
+           showWarnings = FALSE)
+
+cell_type <- "tumor"
+
+mes_sub <- subset(mes, subset = tumor_fine == cell_type)
+
+perform_dge_pseudodbulk(mes_sub,
+                        ident = "treatment2",
+                        contrast = c("chemo", "naive"),
+                        h_gene_sets, outdir = outdir)
+
+
+```

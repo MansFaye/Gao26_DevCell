@@ -1,0 +1,253 @@
+---
+title: "p682 Annotation"
+author: "Geert van Geest"
+date: "11/30/2021"
+output: html_document
+---
+
+
+```{r}
+library(dittoSeq)
+library(Seurat)
+library(readxl)
+```
+
+## Load data
+
+```{r}
+sc <- readRDS("../analysis/sc_integrated_clustered.rds")
+# load in file that can be used to re-orde samples in e.g. barplot
+sample_order <- read_excel("../metadata/sample_order.xlsx")
+sample_order$sample <- sapply(sample_order$`Sample ID`, function(x) {
+  strsplit(x, " ")[[1]][1]
+})
+```
+
+## Cell cycle markers
+
+```{r cc_score, results='hide'}
+DefaultAssay(sc) <- "RNA"
+s.genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+
+sc <- Seurat::CellCycleScoring(sc,
+  s.features = s.genes,
+  g2m.features = g2m.genes
+)
+```
+
+Plot in UMAP. There is a clear group of cells in the G2M/S phase
+
+```{r plotumap_cc, results='hide'}
+p <- dittoDimPlot(sc, var = "Phase", size = 0.1)
+print(p)
+
+pdf("../plots/cell_cycle_umap.pdf")
+print(p)
+dev.off()
+```
+
+## Manual annotation
+
+Cluster-level manual annotation based on canonical genes at [Panglaodb](https://panglaodb.se/markers.html?cell_type=%27choose%27) annotation
+
+```{r}
+pdf("../plots/umap_clustering_labeled.pdf")
+p <- dittoDimPlot(sc,
+  var = "integrated_snn_res.1",
+  do.label = TRUE,
+  size = 0.25
+)
+print(p)
+dev.off()
+```
+
+```{r}
+sc$celltype_fine <- "other"
+DefaultAssay(sc) <- "RNA"
+```
+
+### Plot marker genes
+
+```{r, cache=TRUE}
+markers <- read.csv("../metadata/marker_genes_man.csv")
+mli <- split(markers, markers$celltype_fine)
+
+# define pdf widths based on number of plots
+ngenes <- sapply(mli, nrow)
+widths <- ngenes
+widths[] <- 8
+heights <- widths
+heights[ngenes == 2] <- 4
+widths[ngenes == 3] <- 4
+heights[ngenes == 3] <- 12
+
+for (cellt in names(mli)) {
+  marker_genes <- mli[[cellt]]$gene
+  cellt_name <- gsub(" ", "", cellt)
+
+  pdf(paste0("../plots/UMAP_markers_", cellt_name, ".pdf"),
+    width = widths[cellt],
+    height = heights[cellt]
+  )
+  multi_dittoDimPlot(sc,
+    var = marker_genes,
+    min.color = "grey",
+    max.color = "purple",
+    size = 0.25,
+    order = "increasing"
+  )
+  dev.off()
+}
+```
+
+### Per cluster annotation
+
+```{r}
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(0, 1, 15, 22, 31)] <- "Mesothelial cells"
+sc$celltype_fine[sc$integrated_snn_res.1 %in% 16] <- "Cycling mesothelial cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(10)] <- "B cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(11, 25)] <- "Myeloid cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(8, 13)] <- "NK cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(2, 3, 4, 6, 7, 9, 14)] <- "T cells"
+sc$celltype_fine[sc$integrated_snn_res.1 %in% 19] <- "Cycling lymphoid cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(23)] <- "Plasma cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(26)] <- "Plasmacytoid dendritic cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(27)] <- "Mast cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(18, 20, 29)] <- "Endothelial cells"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(24)] <- "Pericytes"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(5, 12, 17, 21)] <- "Fibroblasts"
+
+sc$celltype_fine[sc$integrated_snn_res.1 %in% c(28)] <- "Smooth muscle cells"
+```
+
+### Visualization fine annotation
+
+```{r}
+p <- dittoDimPlot(sc,
+  var = "celltype_fine", do.label = TRUE, size = 0.25,
+  labels.size = 2
+)
+print(p)
+
+pdf("../plots/umap_manual_annotation_fine_labeled.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoDimPlot(sc, var = "celltype_fine", size = 0.25)
+print(p)
+
+pdf("../plots/umap_manual_annotation_fine.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoBarPlot(sc,
+  var = "celltype_fine", group.by = "orig.ident",
+  x.reorder = match(
+    sample_order$sample,
+    unique(sc$orig.ident)
+  )
+)
+print(p)
+
+pdf("../plots/barplot_manual_annotation_fine.pdf", width = 10)
+print(p)
+dev.off()
+```
+
+### Define main annotation
+
+```{r}
+sc$celltype_main <- sc$celltype_fine
+sc$celltype_main[sc$celltype_fine %in% c(
+  "B cells",
+  "T cells",
+  "NK cells",
+  "Mast cells",
+  "Plasmacytoid dendritic cells",
+  "Plasma cells",
+  "Myeloid cells"
+)] <- "Immune cells"
+
+
+sc$celltype_main[sc$celltype_fine %in% c("Endothelial cells", "Pericytes")] <- "Endothelial cells"
+sc$celltype_main[sc$celltype_fine %in% c("Smooth muscle cells", "other")] <- "Other"
+```
+
+### Visualization main annotation
+
+```{r}
+p <- dittoDimPlot(sc,
+  var = "celltype_main", do.label = TRUE, size = 0.25,
+  labels.size = 2
+)
+print(p)
+
+pdf("../plots/umap_manual_annotation_main_labeled.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoDimPlot(sc, var = "celltype_main", size = 0.25)
+print(p)
+
+pdf("../plots/umap_manual_annotation_main.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoBarPlot(sc,
+  var = "celltype_main", group.by = "orig.ident",
+  x.reorder = match(
+    sample_order$sample,
+    unique(sc$orig.ident)
+  )
+)
+print(p)
+
+pdf("../plots/barplot_manual_annotation_main.pdf", width = 10)
+print(p)
+dev.off()
+```
+
+```{r}
+p <- dittoDotPlot(sc,
+  vars = unique(markers$gene),
+  group.by = "celltype_fine",
+  min.color = "lightgrey", max.color = "darkred"
+)
+print(p)
+
+pdf("../plots/dotplot_celltype_fine_markers.pdf", width = 10)
+print(p)
+dev.off()
+```
+
+```{r, cache=TRUE}
+cr <- colorRampPalette(c("white", "black", "red"))
+
+p <- dittoHeatmap(sc, unique(markers$gene),
+  scaled.to.max = TRUE,
+  heatmap.colors.max.scaled = cr(25),
+  annot.by = c("celltype_fine", "integrated_snn_res.1")
+)
+
+pdf("../plots/heatmap_celltype_fine_markers.pdf", height = 10, width = 15)
+print(p)
+dev.off()
+```
+
+```{r}
+saveRDS(sc, "../analysis/sc_integrated_annotated.rds")
+```
+

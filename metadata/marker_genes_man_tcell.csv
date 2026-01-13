@@ -1,0 +1,25 @@
+﻿gene,tcell_annotation
+NKG7,NK cells
+FCGR3A,NK cells
+GNLY,NK cells
+KLRB1,NK cells
+IL2RA,T regulatory cells
+FOXP3,T regulatory cells
+IKZF2,T regulatory cells
+CTLA4,T regulatory cells
+CD40LG,T effector cells
+TNFRSF4,T effector cells
+KLRB1,T effector cells
+CTLA4,T effector cells
+CCR7,Naive T cells
+IL7R,Naive T cells
+SELL,Naive T cells
+LEF1,Naive T cells
+CD8A,Cytotoxic T cells CD8+
+NKG7,Cytotoxic T cells CD8+
+XCL1,Cytotoxic T cells CD8+
+XCL2,Cytotoxic T cells CD8+
+PDCD1,Exhausted T cells CD8+
+CTLA4,Exhausted T cells CD8+
+HAVCR2,Exhausted T cells CD8+
+LAG3,Exhausted T cells CD8+

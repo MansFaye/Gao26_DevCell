@@ -1,0 +1,181 @@
+---
+title: "p682 cluster T cells"
+author: "Geert van Geest"
+date: "1/12/2022"
+output: html_document
+---
+
+## Read in data
+
+Subsets only the NK and T cells. 
+
+```{r}
+library(Seurat)
+library(dittoSeq)
+library(readxl)
+source("../functions_dge.R") |> suppressPackageStartupMessages()
+```
+
+```{r}
+sc <- readRDS("../analysis/sc_integrated_annotated.rds")
+tc <- subset(sc, subset = celltype_fine %in% c("NK cells", "T cells"))
+
+rm(sc)
+
+# load in file that can be used to re-orde samples in e.g. barplot
+sample_order <- read_excel("../metadata/sample_order.xlsx")
+sample_order$sample <- sapply(sample_order$`Sample ID`, function(x) {
+  strsplit(x, " ")[[1]][1]
+})
+```
+
+## Re-do dimensiontality reduction on cycling cells only
+
+```{r, cache=TRUE, cache.lazy=FALSE, message=FALSE}
+DefaultAssay(tc) <- "integrated"
+tc <- ScaleData(tc, verbose = FALSE)
+tc <- RunPCA(tc, verbose = FALSE)
+tc <- RunUMAP(tc, dims = 1:50)
+```
+
+## UMAPS 
+
+```{r}
+library(dittoSeq)
+dittoDimPlot(tc, var = "orig.ident", size = 0.25)
+dittoDimPlot(tc, var = "Phase", size = 0.25)
+dittoDimPlot(tc, var = "celltype_fine", size = 0.25)
+```
+
+## Clustering
+
+```{r clustering, message=FALSE}
+tc <- Seurat::FindNeighbors(tc, dims = 1:50, reduction = "pca")
+tc <- Seurat::FindClusters(tc, resolution = 0.8)
+```
+
+```{r}
+pdf("../plots/umap_t_cells_cl0.8.pdf", width = 9)
+p <- dittoDimPlot(tc,
+  var = "integrated_snn_res.0.8",
+  size = 0.5, do.label = TRUE
+)
+print(p)
+dev.off()
+print(p)
+```
+
+```{r}
+tc$tcell_annotation <- "other"
+DefaultAssay(tc) <- "RNA"
+```
+
+## Plot marker genes
+
+```{r}
+markers <- read.csv("../metadata/marker_genes_man_tcell.csv")
+mli <- split(markers, markers$tcell_annotation)
+
+for (cellt in names(mli)) {
+  marker_genes <- mli[[cellt]]$gene
+  cellt_name <- gsub("[ \\+]", "", cellt)
+
+  pdf(paste0("../plots/UMAP_tcells_markers_", cellt_name, ".pdf"))
+  multi_dittoDimPlot(tc,
+    var = marker_genes,
+    min.color = "grey",
+    max.color = "purple",
+    size = 0.25,
+    order = "increasing"
+  )
+  dev.off()
+}
+```
+
+```{r}
+dittoDotPlot(tc,
+  vars = unique(markers$gene),
+  group.by = "integrated_snn_res.0.8"
+)
+```
+
+## Assign clusters to T cell type
+
+```{r}
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% c(3, 12)] <- "NK cells"
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% 10] <- "T regulatory cells"
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% 9] <- "T effector cells"
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% c(5, 8)] <- "Naive T cells"
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% c(1, 7, 15, 4)] <- "Cytotoxic T cells CD8+"
+tc$tcell_annotation[tc$integrated_snn_res.0.8 %in% c(2, 13)] <- "Exhausted T cells CD8+"
+```
+
+```{r}
+saveRDS(tc, "../analysis/tcells_annotated.rds")
+```
+
+### Visualization annotation
+
+```{r}
+p <- dittoDimPlot(tc,
+  var = "tcell_annotation", do.label = TRUE, size = 0.25,
+  labels.size = 2
+)
+print(p)
+
+pdf("../plots/umap_manual_annotation_tcells_labeled.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoDimPlot(tc, var = "tcell_annotation", size = 0.25)
+print(p)
+
+pdf("../plots/umap_manual_annotation_tcells.pdf", width = 10)
+print(p)
+dev.off()
+
+p <- dittoBarPlot(tc,
+  var = "tcell_annotation", group.by = "orig.ident",
+  x.reorder = match(
+    sample_order$sample,
+    unique(tc$orig.ident)
+  )
+)
+print(p)
+
+pdf("../plots/barplot_manual_annotation_tcells.pdf", width = 10)
+print(p)
+dev.off()
+```
+
+```{r}
+library(dittoSeq)
+
+p <- dittoDotPlot(tc,
+  vars = unique(markers$gene),
+  group.by = "tcell_annotation",
+  min.color = "lightgrey", max.color = "darkred"
+)
+print(p)
+
+pdf("../plots/dotplot_tcell_markers.pdf")
+print(p)
+dev.off()
+```
+
+
+```{r}
+tmark <- read.delim("../metadata/tcell_markers.txt", header = F)
+
+cr <- colorRampPalette(c("white", "black", "red"))
+
+p <- dittoHeatmap(tc, unique(c(markers$gene, tmark$V1)),
+  scaled.to.max = TRUE,
+  heatmap.colors.max.scaled = cr(25),
+  annot.by = c("tcell_annotation", "integrated_snn_res.0.8")
+)
+
+pdf("../plots/heatmap_tcell_markers.pdf", height = 10, width = 15)
+print(p)
+dev.off()
+```

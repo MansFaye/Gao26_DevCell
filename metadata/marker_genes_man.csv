@@ -1,0 +1,46 @@
+﻿gene,celltype_fine,celltype_main
+MSLN,Mesothelial cells,Mesothelial cells
+CALB2,Mesothelial cells,Mesothelial cells
+UPK3B,Mesothelial cells,Mesothelial cells
+LRRN4,Mesothelial cells,Mesothelial cells
+CD79A,B cells,Immune cells
+IGHM,B cells,Immune cells
+MS4A1,B cells,Immune cells
+LYZ,Myeloid cells,Immune cells
+HLA-DRA,Myeloid cells,Immune cells
+TYROBP,Myeloid cells,Immune cells
+S100A8,Myeloid cells,Immune cells
+NKG7,NK cells,Immune cells
+XCL2,NK cells,Immune cells
+GNLY,NK cells,Immune cells
+CST7,NK cells,Immune cells
+IL7R,T cells,Immune cells
+LTB,T cells,Immune cells
+TRAC,T cells,Immune cells
+CD3D,T cells,Immune cells
+IGKC,Plasma cells,Immune cells
+IGLC2,Plasma cells,Immune cells
+MZB1,Plasma cells,Immune cells
+JCHAIN,Plasma cells,Immune cells
+LILRA4,Plasmacytoid dendritic cells,Immune cells
+GZMB,Plasmacytoid dendritic cells,Immune cells
+IRF7,Plasmacytoid dendritic cells,Immune cells
+SERPINF1,Plasmacytoid dendritic cells,Immune cells
+CPA3,Mast cells,Immune cells
+TPSB2,Mast cells,Immune cells
+TPSAB1,Mast cells,Immune cells
+HDC,Mast cells,Immune cells
+GNG11,Endothelial cells,Endothelial cells
+CLDN5,Endothelial cells,Endothelial cells
+ECSCR,Endothelial cells,Endothelial cells
+SPARCL1,Endothelial cells,Endothelial cells
+RGS5,Pericytes,Endothelial cells
+HIGD1B,Pericytes,Endothelial cells
+PDGFRB,Pericytes,Endothelial cells
+NOTCH3,Pericytes,Endothelial cells
+DCN,Fibroblasts,Fibroblasts
+COL1A1,Fibroblasts,Fibroblasts
+CXCL14,Fibroblasts,Fibroblasts
+LUM,Fibroblasts,Fibroblasts
+DES,Smooth muscle cells,Other
+HSPB6,Smooth muscle cells,Other

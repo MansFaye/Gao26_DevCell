@@ -1,0 +1,105 @@
+---
+title: "p682 Integration and clustering"
+author: "Geert van Geest"
+date: "11/30/2021"
+output: html_document
+---
+
+```{r}
+library(dittoSeq)
+library(Seurat)
+```
+
+## Loading in data
+
+```{r}
+sc <- readRDS("../analysis/sc.rds")
+```
+
+## Scaling and dimensionality reduction (without integration)
+
+```{r scaling_dimred, results='hide', cache=TRUE, cache.lazy=FALSE}
+sc <- FindVariableFeatures(sc)
+sc <- ScaleData(sc, verbose = FALSE)
+sc <- RunPCA(sc, verbose = FALSE)
+sc <- RunUMAP(sc, dims = 1:50)
+```
+
+```{r plot_integration_int}
+
+p <- dittoDimPlot(sc, var = "orig.ident", size = 0.05)
+print(p)
+
+pdf("../plots/umap_before_integration.pdf")
+print(p)
+dev.off()
+```
+
+## Integration
+
+Large dataset so integration with RPCA (https://satijalab.org/seurat/articles/integration_large_datasets.html).
+
+```{r integration, results='hide', cache=TRUE, cache.lazy=FALSE}
+sc.list <- SplitObject(sc, split.by = "orig.ident")
+sc.list <- lapply(X = sc.list, FUN = function(x) {
+  x <- NormalizeData(x, verbose = FALSE)
+  x <- FindVariableFeatures(x, verbose = FALSE)
+})
+
+features <- SelectIntegrationFeatures(object.list = sc.list)
+sc.list <- lapply(X = sc.list, FUN = function(x) {
+  x <- ScaleData(x, features = features, verbose = FALSE)
+  x <- RunPCA(x, features = features, verbose = FALSE)
+})
+
+anchors <- FindIntegrationAnchors(object.list = sc.list,
+reference = c(1, 2),
+reduction = "rpca",
+                                  dims = 1:50)
+sc <- IntegrateData(anchorset = anchors, dims = 1:50)
+```
+
+
+## Scaling and dimensionality reduction
+
+```{r scaling_dimred_int, results='hide', cache=TRUE, cache.lazy=FALSE}
+sc <- ScaleData(sc, verbose = FALSE)
+sc <- RunPCA(sc, verbose = FALSE)
+sc <- RunUMAP(sc, dims = 1:50)
+saveRDS(sc, "../analysis/sc_integrated.rds")
+```
+
+```{r plot_integration}
+library(dittoSeq)
+p <- dittoDimPlot(sc, var = "orig.ident", size = 0.05)
+print(p)
+
+pdf("../plots/umap_after_integration.pdf")
+print(p)
+dev.off()
+```
+
+# Clustering of all cells
+
+Now, we perform clustering based on the PCA. 
+
+```{r clustering, cache=TRUE, cache.lazy=FALSE}
+DefaultAssay(sc) <- "integrated"
+sc <- Seurat::FindNeighbors(sc, dims = 1:50, reduction = "pca")
+sc <- Seurat::FindClusters(sc, resolution = 1)
+```
+
+```{r}
+saveRDS(sc, "../analysis/sc_integrated_clustered.rds")
+```
+
+
+```{r}
+library(dittoSeq)
+p <- dittoDimPlot(sc, var = "integrated_snn_res.1", size = 0.1)
+print(p)
+pdf("../plots/umap_clustering.pdf")
+print(p)
+dev.off()
+```
+
